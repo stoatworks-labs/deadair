@@ -1,0 +1,30 @@
+{
+  "name": "deadair",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Strip silence from a recording in the browser and hand DaVinci Resolve an EDL, a marker list or an FCPXML — or cut the file directly with a generated ffmpeg command.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && npx wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^30.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.0"
+  }
+}

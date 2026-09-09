@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+.vite/
+coverage/
+tsconfig.tsbuildinfo
+
+# Local test media and the copies vite serves for the browser test — not for the repo.
+test-media/
+public/test/
