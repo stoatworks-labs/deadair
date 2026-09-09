@@ -24,6 +24,14 @@ type Status = { kind: 'idle' } | { kind: 'busy'; text: string } | { kind: 'ready
 
 const LARGE_FILE = 1.5 * 1024 * 1024 * 1024
 
+/** A generated export, shown inline before it is saved — viewers that block downloads still get the text. */
+interface Preview {
+  name: string
+  text: string
+  mime: string
+  note?: string
+}
+
 export function App() {
   const [file, setFile] = useState<File | null>(null)
   const [url, setUrl] = useState<string | null>(null)
@@ -40,7 +48,7 @@ export function App() {
   const [markerColor, setMarkerColor] = useState<MarkerColor>('Red')
   const [currentTime, setCurrentTime] = useState(0)
   const [skipSilence, setSkipSilence] = useState(true)
-  const [showCmd, setShowCmd] = useState(false)
+  const [preview, setPreview] = useState<Preview | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [over, setOver] = useState(false)
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
@@ -102,6 +110,24 @@ export function App() {
     }
   }, [])
 
+  // `#load=<url>` fetches a same-origin file on start. It exists so a headless
+  // browser can screenshot the app with a recording in it — the website's
+  // thumbnail pipeline — and for recorded demos. Same-origin only: a file the
+  // page could not have served itself is not something a hash should reach.
+  useEffect(() => {
+    const m = /^#load=(.+)$/.exec(location.hash)
+    if (!m) return
+    const target = decodeURIComponent(m[1])
+    if (!target.startsWith('/') || target.startsWith('//')) return
+    void (async () => {
+      const res = await fetch(target)
+      if (!res.ok) return
+      const blob = await res.blob()
+      const name = target.split('/').pop() || 'recording'
+      await load(new File([blob], name, { type: blob.type }))
+    })()
+  }, [load])
+
   const result = useMemo(() => (env ? detectSilence(env, params) : null), [env, params])
   const keepsFrames = useMemo(
     () => (env && result ? quantiseKeeps(result.keeps, fps, env.duration) : []),
@@ -151,7 +177,7 @@ export function App() {
 
   const exportCut = () => {
     if (!file || !env || !tcOk) return
-    downloadText(
+    show(
       `${stem}-cut.edl`,
       buildCutEdl({
         title: `${stem} stripped`,
@@ -164,11 +190,13 @@ export function App() {
         recordStartFrames: recordFrames!,
         tracks,
       }),
+      'text/plain',
+      'File › Import › Timeline… with the frame rate to match and "Assist using reel names" off.',
     )
   }
   const exportMarkers = () => {
     if (!file || !env || !tcOk) return
-    downloadText(
+    show(
       `${stem}-markers.edl`,
       buildMarkerEdl({
         title: `${stem} silences`,
@@ -179,11 +207,13 @@ export function App() {
         color: markerColor,
         namePrefix: 'Silence',
       }),
+      'text/plain',
+      'Right-click the timeline in the media pool › Timelines › Import › Timeline Markers from EDL…',
     )
   }
   const exportFcpxml = () => {
     if (!file || !env || !tcOk) return
-    downloadText(
+    show(
       `${stem}-stripped.fcpxml`,
       buildFcpxml({
         projectName: `${stem} stripped`,
@@ -204,6 +234,7 @@ export function App() {
         tracks,
       }),
       'application/xml',
+      mediaFolder.trim() ? 'File › Import › Timeline…' : 'File › Import › Timeline… — Resolve will ask where the media is; fill in the media folder to skip that.',
     )
   }
   const exportCsv = () => {
@@ -220,8 +251,13 @@ export function App() {
         )},${framesToTc((sourceFrames ?? 0) + g.end, fps, df)},${g.end - g.start}`,
       )
     }
-    downloadText(`${stem}-silences.csv`, rows.join('\n') + '\n', 'text/csv')
+    show(`${stem}-silences.csv`, rows.join('\n') + '\n', 'text/csv')
   }
+  const exportFfmpeg = () => {
+    if (!ffmpegCmd) return
+    show(`${stem}-strip.sh`, ffmpegCmd + '\n', 'text/x-shellscript', 'Re-encodes with x264 CRF 18 and AAC. Run it in the folder that holds the file.')
+  }
+  const show = (name: string, text: string, mime: string, note?: string) => setPreview({ name, text, mime, note })
   const ffmpegCmd = useMemo(
     () => (file ? buildFfmpegCommand({ inputName: file.name, keeps: keepsFrames, fps, hasVideo, hasAudio, tracks }) : ''),
     [file, keepsFrames, fps, hasVideo, hasAudio, tracks],
@@ -244,8 +280,14 @@ export function App() {
         <h1>
           <span>Dead Air</span>
         </h1>
+        <span className="pill" title="Early preview: verified on one synthetic file in Resolve Studio 21.1. Check every cut.">
+          preview
+        </span>
         <span className="tag">strip silence, then hand the cut to DaVinci Resolve</span>
         <span className="ver">{__APP_VERSION__}</span>
+        <button type="button" className="btn small about" data-stoatworks-about>
+          About
+        </button>
       </header>
 
       <label
@@ -517,24 +559,32 @@ export function App() {
                 <button className="btn" disabled={gaps.length === 0} onClick={exportCsv}>
                   CSV
                 </button>
-                <button className="btn" disabled={!ffmpegCmd} onClick={() => setShowCmd((v) => !v)}>
+                <button className="btn" disabled={!ffmpegCmd} onClick={exportFfmpeg}>
                   ffmpeg command
                 </button>
               </div>
               {!tcOk && <p className="hint">Fix the timecode fields to enable the EDL and FCPXML exports.</p>}
-              {showCmd && ffmpegCmd && (
-                <>
-                  <textarea className="cmd" readOnly value={ffmpegCmd} />
+              {preview && (
+                <div className="preview">
                   <div className="wave-tools">
+                    <strong className="preview-name">{preview.name}</strong>
+                    <span className="sp" />
+                    <button className="btn small primary" onClick={() => downloadText(preview.name, preview.text, preview.mime)}>
+                      Download
+                    </button>
                     <button
                       className="btn small"
-                      onClick={async () => say((await copyText(ffmpegCmd)) ? 'Copied' : 'Copy failed — select the text')}
+                      onClick={async () => say((await copyText(preview.text)) ? 'Copied' : 'Copy failed — select the text')}
                     >
                       Copy
                     </button>
-                    <span>Re-encodes with x264 CRF 18 and AAC. Run it in the folder that holds the file.</span>
+                    <button className="btn small" onClick={() => setPreview(null)}>
+                      Close
+                    </button>
                   </div>
-                </>
+                  <textarea className="cmd" readOnly value={preview.text} spellCheck={false} />
+                  {preview.note && <p className="hint">{preview.note}</p>}
+                </div>
               )}
 
               <details className="howto">

@@ -26,4 +26,6 @@ than the workflow's live check waits.
 `test-media/` is gitignored. Regenerate with macOS `say` and ffmpeg: four spoken sentences
 separated by 1.5 s, 3.2 s, 0.4 s and 2.5 s of silence/room tone, muxed over `testsrc2` at
 25 fps with `-timecode 01:00:00:00` (and a 29.97 `-timecode "10:00:00;00"` variant). Copy into
-`public/test/` to drive the app from the Browser pane with a fetched `File` on the input.
+`public/test/` and open `http://127.0.0.1:5191/#load=/test/speech-25p-tc.mp4` — the `#load=` hash
+fetches a same-origin file on start, which is also how `docs/screenshots/deadair.png` is taken
+(a CDP script that waits for `.stats` to exist; headless `--screenshot` fires before the decode).

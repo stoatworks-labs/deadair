@@ -15,6 +15,7 @@
   --danger: #ff7b7b;
   --radius: 8px;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sw-support-accent: var(--accent);
 }
 
 * {
@@ -63,6 +64,18 @@ header.top h1 span {
 }
 header.top .tag {
   color: var(--fg-2);
+}
+header.top .pill {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 9px;
+  vertical-align: middle;
+}
+header.top .about {
+  margin-left: 10px;
 }
 header.top .ver {
   margin-left: auto;
@@ -368,9 +381,22 @@ table.segs tr.row.current {
   border-radius: 6px;
 }
 
+.preview {
+  margin-bottom: 12px;
+}
+.preview .wave-tools {
+  margin: 0 0 8px;
+}
+.preview-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg);
+}
 textarea.cmd {
   width: 100%;
-  min-height: 90px;
+  min-height: 160px;
+  max-height: 360px;
+  white-space: pre;
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line);
