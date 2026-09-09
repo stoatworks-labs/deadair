@@ -446,3 +446,27 @@ footer.foot {
   padding: 8px 14px;
   z-index: 5;
 }
+
+.render-error {
+  color: var(--danger);
+  margin: 0 0 8px;
+}
+.render-run .bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-3);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.render-run .fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s;
+}
+.wave-tools select {
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 12px;
+}

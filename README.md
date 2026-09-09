@@ -9,8 +9,8 @@
 **Strip silence from a recording, then hand the cut to DaVinci Resolve.** Drop a video or
 audio file, set a threshold and a minimum gap, watch the silences shade red on the waveform,
 and export a cut list Resolve imports as the ripple-deleted timeline — or a marker list to
-review first, an FCPXML for Premiere and Final Cut, or an ffmpeg command that cuts the file
-without any NLE at all.
+review first, an FCPXML for Premiere and Final Cut, an ffmpeg command, or **the cut file
+itself, rendered in the browser** with its own hardware codecs.
 
 Runs entirely in your browser. No account, no backend, nothing uploaded.
 
@@ -45,6 +45,28 @@ Dead Air is for the cases around it:
 Also: a **preview player that skips the silences**, a draggable threshold line, zoom and pan on
 the waveform, and a table of every silence with its source timecodes.
 
+## Rendering in the browser
+
+The **Render in the browser** panel cuts the file in the page. It demuxes with
+[mediabunny](https://mediabunny.dev), decodes with the browser's WebCodecs decoders, re-encodes
+with its H.264 and AAC encoders — hardware-accelerated where the machine has them — and muxes an
+MP4 on the very same frames the EDL describes. **Render and save…** streams the result to disk
+through the File System Access API as it goes, so there is no size limit; **Render in memory**
+holds the whole file and then offers a download, for browsers without the picker. **Check it**
+reloads the result into the app, which is the quickest way to see the silences are gone.
+
+No ffmpeg build is downloaded. The trade is that the codecs are the browser's: Chromium decodes
+H.264, HEVC, AAC and PCM and encodes H.264 and AAC; it does not decode ProRes or DNx, and neither
+mediabunny nor the browser reads MXF. Those files still go through the ffmpeg command.
+
+| File | Kept | Wall time on an M-series Mac | Output |
+| --- | --- | --- | --- |
+| 640 × 360, 25 s | 15.08 s | 2–3 s | 2.4 MB |
+| 1920 × 1080, 77 s | 45.24 s | 5–7 s (150–230 fps) | 34–48 MB depending on quality |
+
+The AAC encoder's priming adds about 70 ms of silence to the end of the audio track; the video
+track is exactly the kept frames.
+
 ## Getting it into Resolve
 
 Import the original file into the media pool first and leave it selected.
@@ -55,6 +77,7 @@ Import the original file into the media pool first and leave it selected.
 | Marker EDL | Put the clip on a timeline at the *Timeline start TC*, then right-click that timeline in the media pool › Timelines › Import › Timeline Markers from EDL… | A coloured span per silence, nothing cut |
 | FCPXML | File › Import › Timeline… | Same timeline; relinks by path if the media folder was filled in, otherwise Resolve asks |
 | ffmpeg command | A terminal, in the folder that holds the file | A re-encoded file with the silences gone, on the same frames as the EDL |
+| Render in the browser | Nowhere — the MP4 is written by the page | The same cut, made with the browser's own codecs; import it as a fresh clip |
 
 **Source start TC must match what Resolve shows for the clip.** It is read from the file when
 there is a timecode track; a phone or screen recording starts at 00:00:00:00.
@@ -80,7 +103,8 @@ npm run build        # tsc -b && vite build -> dist/
 
 `src/types.ts` is the spec. `src/lib/detect.ts` is the engine, `src/lib/timecode.ts` the
 frame and drop-frame arithmetic, `src/lib/edl.ts` / `fcpxml.ts` / `ffmpegcmd.ts` the writers,
-`src/lib/mp4meta.ts` the container reader. `fixtures/tc-25-fixture.mov` is a two-frame MOV
+`src/lib/mp4meta.ts` the container reader, `src/lib/render.ts` the WebCodecs render with its
+arithmetic in `src/lib/rendermath.ts`. `fixtures/tc-25-fixture.mov` is a two-frame MOV
 with a timecode track that the reader test runs against.
 
 ## Status
@@ -90,6 +114,11 @@ with a timecode track that the reader test runs against.
   reported; the FCPXML imported the same geometry and relinked by path; the marker EDL put four
   red markers at the right frames with the right durations. The generated ffmpeg command
   produced a file of exactly the expected 377 frames with no silence over half a second left.
+- **Browser render verified** end to end in headless Chromium: the 25p test file and a 77-second
+  1080p H.264 file rendered, downloaded and probed with ffprobe — frame counts exactly the kept
+  frames, 25 fps, H.264 + AAC, and no silence over half a second left in either. The save-to-disk
+  path uses the same muxer through the File System Access API but has not been driven by a script,
+  because the picker needs a real click; it has been exercised by hand only.
 - **Not verified in Resolve:** drop-frame timecode (29.97/59.94 DF) — the arithmetic is tested
   against the standard boundaries, and a 29.97 DF MOV reads its `10:00:00;00` start correctly,
   but no DF EDL has been imported. Audio-only and video-only track modes. Files with more than
@@ -100,6 +129,11 @@ with a timecode track that the reader test runs against.
 - **Browser coverage:** Chromium only so far. Safari's `decodeAudioData` and its
   `OfflineAudioContext` sample-rate range are untested.
 
+<!-- attributions:start -->
+This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+<!-- attributions:end -->
+
 ## Licence
 
-MIT.
+MIT. mediabunny, which does the demuxing and muxing for the browser render, is MPL-2.0; see
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md).

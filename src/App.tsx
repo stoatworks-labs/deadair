@@ -8,6 +8,9 @@ import type { MarkerColor } from './lib/edl'
 import { buildFcpxml } from './lib/fcpxml'
 import { buildFfmpegCommand } from './lib/ffmpegcmd'
 import { fileSource, readMediaMeta } from './lib/mp4meta'
+import { RenderUnsupported, pickSaveStream, probeRender, renderCut, renderedName } from './lib/render'
+import type { Probe, RenderProgress, RenderQuality, RenderResult } from './lib/render'
+import { formatBytes, formatEta } from './lib/rendermath'
 import {
   FPS_KEYS,
   FPS_PRESETS,
@@ -23,6 +26,14 @@ import type { DetectParams, Envelope, FpsKey, MediaMeta, TrackMode } from './typ
 type Status = { kind: 'idle' } | { kind: 'busy'; text: string } | { kind: 'ready' } | { kind: 'error'; text: string; cmd?: string }
 
 const LARGE_FILE = 1.5 * 1024 * 1024 * 1024
+
+type RenderState =
+  | { kind: 'idle' }
+  | { kind: 'probing' }
+  | { kind: 'ready'; probe: Probe }
+  | { kind: 'running'; probe: Probe; progress: RenderProgress | null; toDisk: boolean }
+  | { kind: 'done'; probe: Probe; result: RenderResult; name: string }
+  | { kind: 'error'; probe: Probe | null; message: string }
 
 /** A generated export, shown inline before it is saved — viewers that block downloads still get the text. */
 interface Preview {
@@ -51,6 +62,9 @@ export function App() {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [over, setOver] = useState(false)
+  const [render, setRender] = useState<RenderState>({ kind: 'idle' })
+  const [renderQuality, setRenderQuality] = useState<RenderQuality>('high')
+  const renderAbort = useRef<AbortController | null>(null)
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
   const fps = FPS_PRESETS[fpsKey]
@@ -62,6 +76,8 @@ export function App() {
     setEnv(null)
     setMeta(null)
     setCurrentTime(0)
+    renderAbort.current?.abort()
+    setRender({ kind: 'idle' })
     setUrl((old) => {
       if (old) URL.revokeObjectURL(old)
       return URL.createObjectURL(f)
@@ -100,6 +116,12 @@ export function App() {
       const e = computeEnvelope(decoded.channels, decoded.sampleRate, 10)
       setEnv(e)
       setStatus({ kind: 'ready' })
+      setRender({ kind: 'probing' })
+      try {
+        setRender({ kind: 'ready', probe: await probeRender(f) })
+      } catch (err) {
+        setRender({ kind: 'error', probe: null, message: `Could not inspect the file for rendering: ${(err as Error).message}` })
+      }
     } catch (err) {
       const text = err instanceof DecodeError ? err.message : `Unexpected error: ${(err as Error).message}`
       setStatus({
@@ -264,6 +286,65 @@ export function App() {
   )
 
   const set = <K extends keyof DetectParams>(k: K, v: DetectParams[K]) => setParams((p) => ({ ...p, [k]: v }))
+
+  const startRender = async (toDisk: boolean) => {
+    if (!file || render.kind !== 'ready') return
+    const probe = render.probe
+    const wantVideo = !!probe.video && tracks !== 'AA'
+    const wantAudio = !!probe.audio && tracks !== 'V'
+    const name = renderedName(file.name, wantVideo)
+    let writable: WritableStream | null = null
+    if (toDisk) {
+      try {
+        writable = await pickSaveStream(name)
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+        writable = null
+      }
+    }
+    const ac = new AbortController()
+    renderAbort.current = ac
+    setRender({ kind: 'running', probe, progress: null, toDisk: !!writable })
+    try {
+      const result = await renderCut({
+        file,
+        keeps: keepsFrames,
+        fps,
+        wantVideo,
+        wantAudio,
+        quality: renderQuality,
+        writable,
+        signal: ac.signal,
+        onProgress: (progress) => setRender({ kind: 'running', probe, progress, toDisk: !!writable }),
+      })
+      setRender({ kind: 'done', probe, result, name })
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        setRender({ kind: 'ready', probe })
+        return
+      }
+      const message = err instanceof RenderUnsupported ? err.message : `Render failed: ${(err as Error).message}`
+      setRender({ kind: 'error', probe, message })
+    } finally {
+      renderAbort.current = null
+    }
+  }
+  const cancelRender = () => renderAbort.current?.abort()
+  const downloadRender = () => {
+    if (render.kind !== 'done' || !render.result.blob) return
+    const url = URL.createObjectURL(render.result.blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = render.name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  }
+  const checkRender = () => {
+    if (render.kind !== 'done' || !render.result.blob) return
+    void load(new File([render.result.blob], render.name, { type: 'video/mp4' }))
+  }
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -617,6 +698,94 @@ export function App() {
             </section>
 
             <section className="panel">
+              <h2>Render in the browser</h2>
+              {render.kind === 'probing' && <p className="hint">Checking what this browser can decode and encode…</p>}
+              {render.kind === 'error' && (
+                <>
+                  <p className="render-error">{render.message}</p>
+                  {render.probe && (
+                    <button className="btn small" onClick={() => setRender({ kind: 'ready', probe: render.probe! })}>
+                      Try again
+                    </button>
+                  )}
+                </>
+              )}
+              {(render.kind === 'ready' || render.kind === 'running' || render.kind === 'done') && (
+                <p className="hint">
+                  {describeProbe(render.probe, tracks)}
+                  {render.probe.reason ? ` ${render.probe.reason}` : ''}
+                </p>
+              )}
+              {render.kind === 'ready' && !render.probe.reason && (
+                <div className="wave-tools">
+                  <label>
+                    Quality{' '}
+                    <select value={renderQuality} onChange={(e) => setRenderQuality(e.target.value as RenderQuality)}>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="very-high">Very high</option>
+                    </select>
+                  </label>
+                  <button className="btn primary" disabled={keepsFrames.length === 0} onClick={() => void startRender(true)}>
+                    Render and save…
+                  </button>
+                  <button className="btn" disabled={keepsFrames.length === 0} onClick={() => void startRender(false)}>
+                    Render in memory
+                  </button>
+                  <span>
+                    Save streams to disk as it goes and has no size limit. In memory holds the whole result, then offers a
+                    download.
+                  </span>
+                </div>
+              )}
+              {render.kind === 'running' && (
+                <div className="render-run">
+                  <div className="bar">
+                    <div className="fill" style={{ width: `${((render.progress?.fraction ?? 0) * 100).toFixed(1)}%` }} />
+                  </div>
+                  <div className="wave-tools">
+                    <span>
+                      {render.progress?.stage ?? 'Starting'} · {((render.progress?.fraction ?? 0) * 100).toFixed(0)}%
+                      {render.progress?.fps ? ` · ${render.progress.fps.toFixed(0)} fps` : ''}
+                      {render.progress?.fps
+                        ? ` · about ${formatEta(
+                            ((render.progress.totalSec - render.progress.processedSec) * (fps.num / fps.den)) / render.progress.fps,
+                          )} left`
+                        : ''}
+                    </span>
+                    <span className="sp" />
+                    <button className="btn small" onClick={cancelRender}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {render.kind === 'done' && (
+                <div className="wave-tools">
+                  <span>
+                    <strong>{render.name}</strong> · {formatBytes(render.result.bytes)} · {formatSeconds(render.result.durationSec)}{' '}
+                    of {[render.result.video, render.result.audio].filter(Boolean).join(' + ')} in {formatEta(render.result.wallSec)}
+                    {render.result.blob ? '' : ' · saved to disk'}
+                  </span>
+                  <span className="sp" />
+                  {render.result.blob && (
+                    <>
+                      <button className="btn small primary" onClick={downloadRender}>
+                        Download
+                      </button>
+                      <button className="btn small" onClick={checkRender} title="Open the rendered file here to confirm the silences are gone">
+                        Check it
+                      </button>
+                    </>
+                  )}
+                  <button className="btn small" onClick={() => setRender({ kind: 'ready', probe: render.probe })}>
+                    Render again
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section className="panel">
               <h2>Silences ({gaps.length})</h2>
               <div className="segs-wrap">
                 <table className="segs">
@@ -670,4 +839,12 @@ export function App() {
       {toast && <div className="toast">{toast}</div>}
     </div>
   )
+}
+
+function describeProbe(p: Probe, tracks: TrackMode): string {
+  const parts: string[] = []
+  if (p.video && tracks !== 'AA') parts.push(`${(p.video.codec ?? 'video').toUpperCase()} ${p.video.width}×${p.video.height} → H.264`)
+  if (p.audio && tracks !== 'V') parts.push(`${(p.audio.codec ?? 'audio').toUpperCase()} ${p.audio.channels} ch ${p.audio.sampleRate / 1000} kHz → AAC`)
+  if (parts.length === 0) return 'Nothing to render with the current track selection.'
+  return `${parts.join(' · ')} → MP4, cut on the same frames as the EDL.`
 }

@@ -23,6 +23,8 @@ src/
   lib/fcpxml.ts         FCPXML 1.10 writer
   lib/ffmpegcmd.ts      trim+concat filter_complex builder
   lib/mp4meta.ts        ISO-BMFF reader: fps, size, tmcd start timecode, durations
+  lib/rendermath.ts     segment planning and boundary trimming for the render (tested in Node)
+  lib/render.ts         the WebCodecs + mediabunny render: probe, decode, re-encode, mux
   lib/decode.ts         OfflineAudioContext decode at 16 kHz
   components/Waveform.tsx   canvas: envelope, threshold drag, zoom/pan, playhead
   App.tsx               state, exports, the preview player that skips silences
@@ -42,6 +44,9 @@ fixtures/tc-25-fixture.mov   two-frame MOV with a tmcd track, for the reader tes
 - **Drop-frame is a display convention on a plain frame count.** Frame 1800 at 29.97 DF is
   `00:01:00;02`. The count 1798 is still in minute 0. Tests pin the boundaries.
 - **A drop-frame flag on a non-DF-capable rate is ignored**, not an error.
+- **The render cuts on `planSegments(keepsFrames)`**, the same frames as the EDL. Video frames
+  are gated by `videoFrameInSegment` (half a frame of slack at the start, none at the end);
+  audio chunks straddling a boundary are `trim`med to the frame, not dropped or kept whole.
 
 ## 4. Traps
 
@@ -62,6 +67,17 @@ fixtures/tc-25-fixture.mov   two-frame MOV with a tmcd track, for the reader tes
   even with the file in the pool; the default (True) relinked by path and reused the pool
   clip. The EDL linked fine either way, by timecode and FROM CLIP NAME.
 
+- `hardwareAcceleration` is `'no-preference'` on both the decoder and the encoder.
+  `'prefer-hardware'` made headless Chrome (no GPU) fail the encoder config outright; with no
+  preference Chrome picks hardware when it has it and software when it does not.
+- `StreamTarget` closes the `FileSystemWritableFileStream` itself on `finalize()`. Do not close
+  it again; do `abort()` nothing either — `output.cancel()` handles the stream on cancel.
+- mediabunny's `Quality` presets pick the bitrate from the resolution; the app exposes three of
+  them rather than a bitrate field, because a number nobody knows how to choose is worse than
+  a word.
+- The AAC encoder's priming leaves ~70 ms of silence at the end of the audio track. The video
+  track is exact. An edit list would fix it; mediabunny does not write one for this case.
+
 ## 5. Verifying against a real Resolve
 
 The scripting API works from Homebrew Python 3.14 with the env vars in Resolve's
@@ -69,5 +85,7 @@ The scripting API works from Homebrew Python 3.14 with the env vars in Resolve's
 throwaway project, `SetSetting('timelineFrameRate', '25')`, `ImportMedia`, then
 `ImportTimelineFromFile` and walk `GetItemListInTrack` comparing `GetStart`/`GetEnd`/
 `GetLeftOffset` to the EDL. `GetMarkers()` reads the marker import back. Delete the project
-afterwards. `test-media/` (gitignored) is generated with `say` and ffmpeg — see the
+afterwards. The browser render is verified by `render-check.mjs` in the session scratchpad
+(see CLAUDE.md): headless Chrome over CDP with `Browser.setDownloadBehavior`, so the Download
+button writes a real file for ffprobe. `test-media/` (gitignored) is generated with `say` and ffmpeg — see the
 `speech-*` recipe in the git history of this file if it is missing.

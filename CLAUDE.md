@@ -21,6 +21,16 @@ npx tsc -b           # typecheck only
 first-ever deploy by hand with `cf-run npm run deploy` — a new custom domain resolves slower
 than the workflow's live check waits.
 
+## Verifying the browser render
+
+Headless Chrome cannot show a save picker, but it can download. A CDP script (Node 26's
+built-in `WebSocket`, Chrome with `--remote-debugging-port`) that navigates to
+`/#load=/test/<file>`, clicks **Render in memory**, waits for **Download**, clicks it with
+`Browser.setDownloadBehavior {allow, downloadPath}` set, then `ffprobe -count_frames` on the
+result and `silencedetect` for what is left, is the proof. Kill the Chrome it spawned before
+running it again — a leftover instance on the same debugging port answers the next run's
+`/json/list` with the old page.
+
 ## Test media
 
 `test-media/` is gitignored. Regenerate with macOS `say` and ffmpeg: four spoken sentences
