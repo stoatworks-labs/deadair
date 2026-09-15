@@ -14,6 +14,10 @@ itself, rendered in the browser** with its own hardware codecs.
 
 Runs entirely in your browser. No account, no backend, nothing uploaded.
 
+![Dead Air with a test clip analysed: four silences found, the waveform with the cut regions shaded, and the cut list with source timecodes](docs/screenshots/deadair.png)
+
+<sub>A 25-second test clip analysed at −40 dBFS: four silences found, 40 % of the clip removed, the waveform with the cut regions shaded, and the cut list with source timecodes in and out, ready to leave as an EDL, FCPXML or CSV.</sub>
+
 ## Resolve already has this — so why?
 
 Resolve 20.2 added **Clip › Audio Operations › Ripple Delete Silence** on the Edit and Cut
