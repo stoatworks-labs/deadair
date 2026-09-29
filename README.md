@@ -1,4 +1,5 @@
-> **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code).
+> **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
+> (Anthropic), directed and reviewed by a human author.
 > The detector and the timecode maths are covered by tests, and all three Resolve routes — the
 > cut-list EDL, the marker EDL and the FCPXML — have been imported into a running DaVinci Resolve
 > Studio 21.1 and read back frame-for-frame. **That was one synthetic 25p file.** Drop-frame output
