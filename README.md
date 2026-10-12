@@ -1,19 +1,19 @@
 > **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
 > (Anthropic), directed and reviewed by a human author.
-> The detector and the timecode maths are covered by tests, and all three Resolve routes — the
-> cut-list EDL, the marker EDL and the FCPXML — have been imported into a running DaVinci Resolve
-> Studio 21.1 and read back frame-for-frame. **That was one synthetic 25p file.** Drop-frame output
+> The detector and the timecode maths are covered by tests, and all three Resolve routes (the
+> cut-list EDL, the marker EDL and the FCPXML) have been imported into a running DaVinci Resolve
+> Studio 21.1 and read back frame for frame. **That was one synthetic 25p file.** Drop-frame output
 > has only been checked against the arithmetic, never through Resolve. See [Status](#status).
 
 # Dead Air
 
 **Strip silence from a recording, then hand the cut to DaVinci Resolve.** Drop a video or
 audio file, set a threshold and a minimum gap, watch the silences shade red on the waveform,
-and export a cut list Resolve imports as the ripple-deleted timeline — or a marker list to
-review first, an FCPXML for Premiere and Final Cut, an ffmpeg command, or **the cut file
+and export a cut list Resolve imports as the ripple-deleted timeline. Or export a marker list
+to review first, an FCPXML for Premiere and Final Cut, an ffmpeg command, or **the cut file
 itself, rendered in the browser** with its own hardware codecs.
 
-Runs entirely in your browser. No account, no backend, nothing uploaded.
+It runs entirely in your browser, with no account and no backend, and nothing gets uploaded.
 
 ![Dead Air with a test clip analysed: four silences found, the waveform with the cut regions shaded, and the cut list with source timecodes](docs/screenshots/deadair.png)
 
@@ -22,8 +22,8 @@ Runs entirely in your browser. No account, no backend, nothing uploaded.
 ## Resolve already has this — so why?
 
 Resolve 20.2 added **Clip › Audio Operations › Ripple Delete Silence** on the Edit and Cut
-pages, in both Free and Studio, and for a linked talking-head clip it is the shortest route.
-Dead Air is for the cases around it:
+pages, in both Free and Studio, and for a linked talking-head clip it's the shortest route.
+Dead Air is for everything around it:
 
 - **Review before you cut.** The marker EDL puts a coloured span on every silence and touches
   nothing else. Step through them, delete the ones that are dramatic pauses, then cut.
@@ -32,15 +32,15 @@ Dead Air is for the cases around it:
 - **Anything that isn't Resolve.** The FCPXML opens in Premiere and Final Cut; the CSV goes
   wherever CSVs go.
 - **A picture of the decision.** The loudness envelope with the threshold drawn across it
-  shows *why* a cut landed where it did, which Resolve's dialog does not.
+  shows *why* a cut landed where it did, which Resolve's dialog doesn't.
 
 ## What it does
 
 1. Reads the container. For MP4/MOV it pulls the frame rate, picture size and the **start
-   timecode from the `tmcd` track** the way cameras and Resolve write it — only the box
+   timecode from the `tmcd` track** the way cameras and Resolve write it. Only the box
    headers and the `moov` are read, so a 40 GB ProRes file costs kilobytes of I/O.
 2. Decodes the audio with the browser at 16 kHz and measures RMS loudness in 10 ms windows,
-   loudest channel wins.
+   and the loudest channel wins.
 3. Finds runs below the threshold that last at least the minimum, shrinks each by the pre-head
    and post-tail so the cut never touches speech, optionally swallows kept islands too short
    to be a word, and quantises the result to whole frames.
@@ -54,14 +54,14 @@ the waveform, and a table of every silence with its source timecodes.
 
 The **Render in the browser** panel cuts the file in the page. It demuxes with
 [mediabunny](https://mediabunny.dev), decodes with the browser's WebCodecs decoders, re-encodes
-with its H.264 and AAC encoders — hardware-accelerated where the machine has them — and muxes an
-MP4 on the very same frames the EDL describes. **Render and save…** streams the result to disk
+with its H.264 and AAC encoders (hardware-accelerated where the machine has them), and muxes an
+MP4 on the same frames the EDL describes. **Render and save…** streams the result to disk
 through the File System Access API as it goes, so there is no size limit; **Render in memory**
 holds the whole file and then offers a download, for browsers without the picker. **Check it**
 reloads the result into the app, which is the quickest way to see the silences are gone.
 
 No ffmpeg build is downloaded. The trade is that the codecs are the browser's: Chromium decodes
-H.264, HEVC, AAC and PCM and encodes H.264 and AAC; it does not decode ProRes or DNx, and neither
+H.264, HEVC, AAC and PCM and encodes H.264 and AAC; it doesn't decode ProRes or DNx, and neither
 mediabunny nor the browser reads MXF. Those files still go through the ffmpeg command.
 
 | File | Kept | Wall time on an M-series Mac | Output |
@@ -84,8 +84,8 @@ Import the original file into the media pool first and leave it selected.
 | ffmpeg command | A terminal, in the folder that holds the file | A re-encoded file with the silences gone, on the same frames as the EDL |
 | Render in the browser | Nowhere — the MP4 is written by the page | The same cut, made with the browser's own codecs; import it as a fresh clip |
 
-**Source start TC must match what Resolve shows for the clip.** It is read from the file when
-there is a timecode track; a phone or screen recording starts at 00:00:00:00.
+**Source start TC must match what Resolve shows for the clip.** It's read from the file when
+there's a timecode track; a phone or screen recording starts at 00:00:00:00.
 
 ## Limits
 
@@ -94,7 +94,7 @@ there is a timecode track; a phone or screen recording starts at 00:00:00:00.
   frame rate and timecode read from the original are kept.
 - Decoding depends on the browser's codecs. Chrome and Edge handle AAC and PCM in MP4/MOV;
   MXF and most ProRes-in-MOV audio will need the same WAV extraction.
-- It is a level detector. It does not know a dramatic pause from dead air, and it cannot hear
+- It's a level detector. It doesn't know a dramatic pause from dead air, and it can't hear
   a quiet consonant under the threshold. Review the cuts.
 
 ## Development
@@ -120,19 +120,20 @@ with a timecode track that the reader test runs against.
   red markers at the right frames with the right durations. The generated ffmpeg command
   produced a file of exactly the expected 377 frames with no silence over half a second left.
 - **Browser render verified** end to end in headless Chromium: the 25p test file and a 77-second
-  1080p H.264 file rendered, downloaded and probed with ffprobe — frame counts exactly the kept
+  1080p H.264 file rendered, downloaded and probed with ffprobe: frame counts exactly the kept
   frames, 25 fps, H.264 + AAC, and no silence over half a second left in either. The save-to-disk
-  path uses the same muxer through the File System Access API but has not been driven by a script,
-  because the picker needs a real click; it has been exercised by hand only.
-- **Not verified in Resolve:** drop-frame timecode (29.97/59.94 DF) — the arithmetic is tested
+  path uses the same muxer through the File System Access API but hasn't been driven by a script,
+  because the picker needs a real click, so it's only been exercised by hand.
+- **Not verified in Resolve:** drop-frame timecode (29.97/59.94 DF). The arithmetic is tested
   against the standard boundaries, and a 29.97 DF MOV reads its `10:00:00;00` start correctly,
   but no DF EDL has been imported. Audio-only and video-only track modes. Files with more than
   999 events.
 - **Not verified interactively:** dragging the threshold line on the waveform (the slider
-  is the same state and works). The rest of the waveform — zoom, pan, click-to-seek, the
-  skip-silence preview — has only been exercised by hand in Chromium's dev server.
+  is the same state and works). The rest of the waveform (zoom, pan, click-to-seek, the
+  skip-silence preview) has only been exercised by hand in Chromium's dev server.
 - **Browser coverage:** Chromium only so far. Safari's `decodeAudioData` and its
-  `OfflineAudioContext` sample-rate range are untested.
+  `OfflineAudioContext` sample-rate range are untested. If you try it in Safari, let me know
+  how it goes.
 
 <!-- attributions:start -->
 This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
