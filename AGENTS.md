@@ -5,9 +5,10 @@ holds the short command reference; this file explains the model and the traps.
 
 ## 1. What this is
 
-A browser-only silence stripper that outputs edit decisions rather than media: a CMX3600
-cut list, a Resolve marker EDL, an FCPXML, a CSV, and an ffmpeg command. React + TypeScript +
-Vite, static `dist/`, Cloudflare. No backend, nothing uploaded.
+A browser-only silence stripper that outputs edit decisions (a CMX3600 cut list, a Resolve
+marker EDL, an FCPXML, a CSV, and an ffmpeg command) and can also render the cut MP4 itself in
+the page, with WebCodecs and mediabunny. React + TypeScript + Vite, static `dist/`, Cloudflare.
+No backend, nothing uploaded.
 
 Resolve 20.2+ has Ripple Delete Silence built in. This tool exists for the review-first
 marker pass, batch prep, and non-Resolve targets — the README says so, and the footer says so.
