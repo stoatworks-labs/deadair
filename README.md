@@ -15,6 +15,8 @@ itself, rendered in the browser** with its own hardware codecs.
 
 It runs entirely in your browser, with no account and no backend, and nothing gets uploaded.
 
+It's live at [deadair.stoatworks-labs.com](https://deadair.stoatworks-labs.com). There's more on [its page at stoatworks-labs.com](https://stoatworks-labs.com/web-tools/deadair/).
+
 ![Dead Air with a test clip analysed: four silences found, the waveform with the cut regions shaded, and the cut list with source timecodes](docs/screenshots/deadair.png)
 
 <sub>A 25-second test clip analysed at −40 dBFS: four silences found, 40 % of the clip removed, the waveform with the cut regions shaded, and the cut list with source timecodes in and out, ready to leave as an EDL, FCPXML or CSV.</sub>

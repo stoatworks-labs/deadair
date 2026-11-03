@@ -1,0 +1,14 @@
+# Dead Air
+
+> Strip silence, then hand the cut to Resolve
+
+Drop in a recording, set a threshold and a minimum gap, and watch the silences shade red on a loudness waveform. Out comes a cut-list EDL that DaVinci Resolve imports as the ripple-deleted timeline, a marker EDL so you can review the silences before cutting anything, an FCPXML for Premiere and Final Cut, a CSV and an ffmpeg command. Or it'll make the cut file itself, rendered in the browser with the browser's own hardware H.264 and AAC codecs and streamed straight to disk. It reads the frame rate and start timecode from the file's own timecode track, and the whole thing runs in the browser.
+
+It's a Stoatworks Labs web tool: free, and it runs in a web browser.
+
+## Links
+
+- [Dead Air, the app](https://deadair.stoatworks-labs.com/): runs in the browser, free
+- [Project page](https://stoatworks-labs.com/software/deadair/)
+- [Web tool page](https://stoatworks-labs.com/web-tools/deadair/)
+- [Source on GitHub](https://github.com/stoatworks-labs/deadair)

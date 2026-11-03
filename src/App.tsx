@@ -834,7 +834,8 @@ export function App() {
 
       <footer className="foot">
         Dead Air runs entirely in your browser. Resolve 20.2 and later also have Clip › Audio Operations › Ripple Delete
-        Silence built in — this tool is for review-first marker passes, batch prep, and cutting outside Resolve.
+        Silence built in — this tool is for review-first marker passes, batch prep, and cutting outside Resolve.{' '}
+        <a href="https://stoatworks-labs.com/web-tools/deadair/" target="_blank" rel="noopener">More about Dead Air</a>.
       </footer>
       {toast && <div className="toast">{toast}</div>}
     </div>
