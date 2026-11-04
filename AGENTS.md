@@ -76,8 +76,13 @@ fixtures/tc-25-fixture.mov   two-frame MOV with a tmcd track, for the reader tes
 - mediabunny's `Quality` presets pick the bitrate from the resolution; the app exposes three of
   them rather than a bitrate field, because a number nobody knows how to choose is worse than
   a word.
-- The AAC encoder's priming leaves ~70 ms of silence at the end of the audio track. The video
-  track is exact. An edit list would fix it; mediabunny does not write one for this case.
+- The AAC encoder primes with 2112 samples (44 ms at 48 kHz). Since mediabunny 1.63 the audio
+  track carries an edit list (`elst`, media time 2112) that skips them, so the decoded audio
+  matches the source cut to the sample. Up to 1.62 there was no edit list: the priming played
+  as sound and the whole audio track was 44 ms late. The audio still runs ~23 ms past the last
+  video frame (the padding in the final 1024-sample AAC frame); the video track is exact.
+  Measured 2026-11-04 with ffmpeg only (see CLAUDE.md, "Verifying the browser render"); not
+  checked in Resolve or QuickTime.
 
 ## 5. Verifying against a real Resolve
 

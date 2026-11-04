@@ -71,8 +71,10 @@ mediabunny nor the browser reads MXF. Those files still go through the ffmpeg co
 | 640 × 360, 25 s | 15.08 s | 2–3 s | 2.4 MB |
 | 1920 × 1080, 77 s | 45.24 s | 5–7 s (150–230 fps) | 34–48 MB depending on quality |
 
-The AAC encoder's priming adds about 70 ms of silence to the end of the audio track; the video
-track is exactly the kept frames.
+The AAC encoder starts every track with 44 ms of priming. The MP4 carries an edit list telling
+the player to skip it, so the sound lines up with the picture to the sample. The audio track
+still runs about 23 ms past the last frame, because AAC works in blocks of 1024 samples; the
+video track is exactly the kept frames.
 
 ## Getting it into Resolve
 

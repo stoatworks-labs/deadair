@@ -31,6 +31,11 @@ result and `silencedetect` for what is left, is the proof. Kill the Chrome it sp
 running it again — a leftover instance on the same debugging port answers the next run's
 `/json/list` with the old page.
 
+For sync, cut the source's audio on the same spans with ffmpeg (`atrim` + `concat`, the times
+from the app's own ffmpeg command, written to PCM so no encoder priming creeps in) and
+cross-correlate the render's decoded audio against it, span by span. Anything other than a
+zero lag is a sync error; up to mediabunny 1.62 it was 44 ms on every span.
+
 ## Test media
 
 `test-media/` is gitignored. Regenerate with macOS `say` and ffmpeg: four spoken sentences
