@@ -14,7 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "mediabunny": "^1.65.0",
+    "mediabunny": "^1.65.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
